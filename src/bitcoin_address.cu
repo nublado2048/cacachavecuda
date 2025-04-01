@@ -9,6 +9,9 @@
 #include "CPU/Point.h"
 #include "CPU/SECP256k1.h"
 #include "GPU/GPUSecp.h"
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 // Variáveis globais para tabelas G na GPU
 uint8_t *d_gTableX = nullptr;
@@ -424,6 +427,29 @@ int main(int argc, char **argv) {
         printf("\n");
     } else {
         printf("\nChave não encontrada após %.2f segundos\n", total_search_time);
+    }
+
+    if (match_found_host) {
+        // Copiar a chave encontrada para a CPU
+        cudaMemcpyAsync(private_key, streams[current_stream].d_private_key,
+                        32, cudaMemcpyDeviceToHost, streams[current_stream].stream);
+        cudaStreamSynchronize(streams[current_stream].stream); // Garantir que os dados foram transferidos
+        
+        // Converter a chave para string hexadecimal
+        std::ostringstream chave_hex;
+        for (int i = 0; i < 32; i++) {
+            chave_hex << std::hex << std::setw(2) << std::setfill('0') << (int)private_key[i];
+        }
+    
+        // Salvar no arquivo
+        std::ofstream file("Chaves_Encontradas.txt", std::ios::app);
+        if (file.is_open()) {
+            file << "Chave encontrada: " << chave_hex.str() << "\n";
+            file.close();
+            std::cout << "Chave salva com sucesso!\n";
+        } else {
+            std::cerr << "Erro ao abrir o arquivo!\n";
+        }
     }
 
     // Cleanup
